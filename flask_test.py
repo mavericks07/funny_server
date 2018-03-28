@@ -26,4 +26,4 @@ application = create_app()
 if __name__ == '__main__':
     from werkzeug.contrib.fixers import ProxyFix
     application.wsgi_app = ProxyFix(application.wsgi_app)
-    application.run()
+    application.run(host="0.0.0.0")

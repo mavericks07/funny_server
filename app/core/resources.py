@@ -97,7 +97,6 @@ class MongoResource(BaseResource):
         queryset = self.get_queryset(**parm)
         # page_queryset = PaginatedQuery(queryset, self.page_size)
         serializers = self.schema.dump(queryset, many=True).data
-        print(queryset)
         return serializers
 
     def put(self, pk):

@@ -1,3 +1,5 @@
+import re
+import redis
 import requests
 from bs4 import BeautifulSoup
 from lxml.html import etree
@@ -14,6 +16,8 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleW
            'Accept-Language': 'zh-CN,zh;q=0.9'
            }
 
+r = redis.Redis(host='127.0.0.1', port=6379, db=1)
+
 
 def spider1():
     """
@@ -26,15 +30,25 @@ def spider1():
     soup = soup.find("div", {"class": "joketype l_left"})
 
     def get_item(item_url):
-        pass
-
-    def handle_item(item_url):
+        if r.sismember('down', item_url):
+            print(f'已经抓取过:{item_url}')
+            return 0
         item_resp = requests.get(item_url, headers=headers)
         item_resp.encoding = 'GB2312'
         item_soup = BeautifulSoup(item_resp.text, 'lxml')
         item_soup = item_soup.find('span', {"id": "text110"})
-        for item in item_soup.select('p'):
-            joke_set.insert({"content": item.text})
+        item_soup = item_soup.select('p')
+        if not item_soup:
+            return 0
+        for item in item_soup:
+            content = item.text[2:]
+            if len(content) > 20:
+                print(content)
+                joke_set.insert({"content": item.text[2:]})
+                joke_set.insert({"from": item_url})
+                r.sadd('down', item_url)
+            else:
+                r.sadd('fail', item_url)
 
     def get_list(list_url):
         list_resp = requests.get(list_url, headers=headers)
@@ -43,17 +57,33 @@ def spider1():
         list_soup = list_soup.find('div', {"class": "list_title"})
         return list_soup.select('li > b > a[href]')
 
+    def get_page_nums(list_url):
+        list_resp = requests.get(list_url, headers=headers)
+        list_resp.encoding = 'GB2312'
+        list_soup = BeautifulSoup(list_resp.text, 'lxml')
+        list_soup = list_soup.find('div', {"class": "next_page"})
+        last_url = list_soup.find_all("a")[-1].get('href')
+        page_nums_groups = re.search(r'.*_(\d*).*', last_url).groups()
+        if not page_nums_groups:
+            return 0
+        page_nums = int(page_nums_groups[0])
+
+        return page_nums
+
     def handle_list(list_url):
-        joke_list = get_list(list_url)
-        for item in joke_list:
-            new_item_url = url + item.get('href')
-            handle_item(new_item_url)
-            break
+        page_nums = get_page_nums(list_url)
+        for num in range(1, page_nums+1):
+            print(num)
+            list_url = re.sub(r'_\d*', f'_{num}', list_url)
+            joke_list = get_list(list_url)
+            for item in joke_list:
+                new_item_url = url + item.get('href')
+                get_item(new_item_url)
 
     for each in soup.select('li > a[href]'):
         new_list_url = url + each.get('href')
         handle_list(new_list_url)
-        break
 
 
 spider1()
+

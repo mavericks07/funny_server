@@ -14,5 +14,6 @@ class Joke(mongo.Document):
 
     _id = fields.ObjectIdField()
     content = fields.StringField()
+    from_url = fields.StringField()
 
-    common_fields = ('_id', 'content',)
+    common_fields = ('_id', 'content')
