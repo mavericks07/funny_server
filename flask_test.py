@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, make_response, send_file
 from app.api.v1 import v1
 from app.core.models import db_wrapper
 from config import config
@@ -17,6 +17,13 @@ def create_app(config_name='default'):
     db_wrapper.init_app(app)
     mongo.init_app(app)
     app.register_blueprint(v1, url_prefix='/api/v1')
+
+    @app.route('/android-apk', methods=['GET'])
+    def download():
+
+        response = make_response(send_file("file/app-debug.apk"))
+
+        return response
 
     return app
 
